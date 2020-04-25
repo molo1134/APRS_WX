@@ -1,0 +1,140 @@
+#include <TimerThree.h>
+
+const byte interruptPin = 2;
+volatile bool pulseFlag;
+volatile bool runFlag;
+volatile bool gustFlag;
+volatile unsigned long newTime;
+volatile unsigned long oldTime;
+volatile unsigned long newDeltaT;
+volatile unsigned long oldDeltaT;
+unsigned long oldVelocity;
+unsigned long newVelocity;
+unsigned long avgVelocity;
+unsigned long minVelocity;
+unsigned long maxVelocity;
+long deltaV;
+long dvAvg;
+long dvTotal;
+byte dvPosCount;
+byte dvNegCount;
+unsigned long gustStartTime;
+unsigned long gustEndTime;
+
+unsigned long otCopy;
+unsigned long ntCopy;
+uint8_t errorCount;
+int pulseCount;
+int cycleCount;
+
+
+int windDirection;
+int windDirAvg;
+int windDirMax;
+int windDirMin;
+
+
+void setup() {
+  Serial.begin(115200);
+  Timer3.initialize(5000); //initialize timer3 with for 5mS (200Hz)
+  Timer3.attachInterrupt(timeCheck); //call timeCheck function on compare match
+  pulseCount = 0;
+  errorCount = 0;
+  oldTime = 0;
+  newTime = 0;
+  minVelocity = 255;
+  maxVelocity = 0;
+  
+  pinMode(interruptPin, INPUT_PULLUP);
+  pinMode(4, OUTPUT);
+  digitalWrite(4, LOW);
+  pinMode(3, OUTPUT);
+  digitalWrite(3, HIGH);
+  attachInterrupt(digitalPinToInterrupt(interruptPin), readTime, FALLING);
+}
+
+
+void readTime() {
+  noInterrupts();
+  oldTime = newTime;
+  newTime = millis(); //record time of pulse from timer1
+  errorCount ++; // increment a pulse count byte. 0 = wait for another pulse, 1 = do stuff, >1 = missed pulses
+  pulseFlag = true;
+  cycleCount ++;
+  interrupts();
+}
+
+
+void timeCheck() { //After pulse received, checks error count for data validity. If valid, sets run flag.
+  noInterrupts();
+  if (pulseFlag == true) {
+    
+      switch (errorCount) {      
+        case 1:        
+          runFlag = false;
+          break;
+        case 2:        
+          runFlag = true;
+          errorCount = 1;
+          break;
+        default:
+          runFlag = false;
+          errorCount = 0;
+          break;
+      }
+    pulseFlag = false;
+  }
+  interrupts();
+}
+  
+
+void doMath() {
+
+  oldDeltaT = newDeltaT; 
+  newDeltaT = ntCopy - otCopy;  //Calculate time between pulses
+  oldVelocity = newVelocity;    
+  newVelocity = 14000 / newDeltaT; //MPH to tenths
+  if (newVelocity > maxVelocity){ //Check if this sample exceeds 1 second max
+     maxVelocity = newVelocity;  
+  }
+  if (newVelocity < minVelocity) { //Check if this sample is below 1 second min
+     minVelocity = newVelocity;
+  }
+  deltaV = newVelocity - oldVelocity; //Calculate change in velocity
+  dvTotal = dvTotal + deltaV;
+  if (deltaV > 5) {  //If change is strongly positive, increment gust counter
+      dvNegCount = 0; //reset negative trend tracker
+      dvPosCount ++;
+      if (dvPosCount = 1) {
+          gustStartTime = ntCopy;
+      }
+      if (dvPosCount > 3) {
+          gustFlag = true; //If 5 consecutive strongly positive samples, set gust flag
+      }
+  }
+  if (deltaV < 0) { //If strongly negative increment negative tracker
+      dvNegCount ++;
+      if (dvNegCount > 5) {
+          dvPosCount = 0;
+          gustEndTime = ntCopy;
+          gustFlag = false;
+      }
+  }
+}
+
+
+void ppsInterrupt() { //ISR for GPS PPS
+  
+}
+
+
+void loop() {
+  if (runFlag == true) {    
+      noInterrupts();
+      otCopy = oldTime; //copy shared data to a safe place to math it
+      ntCopy = newTime;
+      runFlag = false;
+      interrupts();    
+  }
+  
+}
