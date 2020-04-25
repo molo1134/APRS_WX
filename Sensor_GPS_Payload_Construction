@@ -1,0 +1,162 @@
+#include <TinyGPS.h>
+#include <Arduino.h>
+#include <Wire.h>
+#include <BMx280I2C.h>
+
+#define I2C_ADDRESS 0x76
+
+//create a BMx280I2C object using the I2C interface with I2C Address 0x76
+BMx280I2C bmx280(I2C_ADDRESS);
+
+TinyGPS gps;
+
+String timeString, latString, lonString, payloadString;
+String leadSym;
+String tableSym;
+String n_s;
+String e_w;
+String temp;
+String hum;
+String pres;
+
+
+
+
+void setup()
+{
+  Serial.begin(115200);
+  Serial3.begin(9600);
+  Wire.begin();
+  leadSym = '@'; // @ for reports w/ timestamp, ! without timestamp
+  tableSym = '/'; // / for standard symbol table, // for alternate
+
+  if (!bmx280.begin())
+  {
+    Serial.println("begin() failed. check your BMx280 Interface and I2C Address.");
+    while (1);
+  }
+
+  //reset sensor to default parameters.
+  bmx280.resetToDefaults();
+
+  //by default sensing is disabled and must be enabled by setting a non-zero
+  //oversampling setting.
+  //set an oversampling setting for pressure and temperature measurements. 
+  bmx280.writeOversamplingPressure(BMx280MI::OSRS_P_x16);
+  bmx280.writeOversamplingTemperature(BMx280MI::OSRS_T_x16);
+
+  //if sensor is a BME280, set an oversampling setting for humidity measurements.
+  if (bmx280.isBME280())
+    bmx280.writeOversamplingHumidity(BMx280MI::OSRS_H_x16);
+}
+
+
+void loop()
+{
+  bool newData = false;
+  unsigned long chars;
+  unsigned short sentences, failed;
+
+  // For one second we parse GPS data and report some key values
+  for (unsigned long start = millis(); millis() - start < 1000;)
+  {
+    while (Serial3.available())
+    {
+      char c = Serial3.read();
+      // Serial.write(c); // uncomment this line if you want to see the GPS data flowing
+      if (gps.encode(c)) // Did a new valid sentence come in?
+        newData = true;
+    }
+  }
+
+  if (newData)
+  {
+    float flat, flon;
+    unsigned long age; // Not sure if I need age
+    gps.f_get_position(&flat, &flon, &age);
+   
+    print_date(gps); //Run function to load time and date into timeString
+    
+    float latNMEA = abs(flat); //remove negative position values, will be replaced with cardinal directions
+    char latC[10];
+    dtostrf(latNMEA, 4, 2, latC);
+    latString = latC;
+    if (latNMEA > 0) { // Northern or Southern hemisphere
+      n_s = 'N';
+    }
+    else {
+      n_s = 'S';
+    }
+    
+    float lonNMEA = abs(flon); 
+    char lonC[10]; 
+    dtostrf(lonNMEA, 4, 2, lonC);
+    lonString = lonC;
+    if (lonNMEA > 0) { // Eastern or Western hemisphere
+      e_w = 'W';
+    }
+    else {
+      e_w = 'E';
+    }
+
+    //Construct payload from available strings
+    payloadString = leadSym + timeString + 'z' + latString + n_s + tableSym + lonString + e_w + '_';
+    Serial.println(payloadString);
+    
+  }
+
+  //Check if the GPS is busted
+  gps.stats(&chars, &sentences, &failed);
+  if (chars == 0)
+    Serial.println("** No characters received from GPS: check wiring **");
+  temp_sensor();
+}
+
+
+
+
+//This polls the GPS for time and date, formats it to ddhhmm and loads it into timeString
+static void print_date(TinyGPS &gps)
+{
+  char t[10];
+  int year;
+  byte month, day, hour, minute, second, hundredths;
+  unsigned long age;
+  gps.crack_datetime(&year, &month, &day, &hour, &minute, &second, &hundredths, &age);
+  if (age == TinyGPS::GPS_INVALID_AGE)
+    Serial.print("******");
+  else
+  {
+    sprintf(t, "%02d%02d%02d",
+       day, hour, minute);
+    timeString = t;
+
+  } 
+}
+
+void temp_sensor()
+{
+  if (!bmx280.measure())
+  {
+    Serial.println("could not start measurement, is a measurement already running?");
+    return;
+  }
+
+  //wait for the measurement to finish
+  do
+  {
+    delay(100);
+  } while (!bmx280.hasValue());
+
+
+  long p = bmx280.getPressure64();
+  pres = p;
+  int tmp = bmx280.getTemperature();
+  int tmpF = tmp * (9/5) + 32;
+  temp = tmpF;
+  byte h = bmx280.getHumidity();
+  if (h == 100){
+    h = "00";
+  }
+  hum = h;
+}
