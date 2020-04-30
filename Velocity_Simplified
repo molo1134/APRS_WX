@@ -5,13 +5,15 @@ const byte ppsPin = 20; // CHANGE SO HALL EFFECT IO DOESN'T USE PIN 3, CHANGE TH
 volatile bool pulseFlag;
 volatile bool calcFlag;
 volatile bool ppsFlag;
-volatile bool idleFlag;
 volatile unsigned long ppsCount;
-unsigned long ppsCountCpy;
+volatile uint8_t pulseCount;
+volatile uint8_t errorCount;
 volatile unsigned long newTime;
 volatile unsigned long oldTime;
 volatile unsigned long newDeltaT;
-volatile unsigned long oldDeltaT;
+//volatile unsigned long oldDeltaT;
+
+
 int newDeltaV;
 int oldDeltaV;
 int pulseMinDeltaV;
@@ -20,13 +22,10 @@ unsigned int newVelocity;
 unsigned int oldVelocity;
 unsigned long pulseMinVelocity;
 unsigned long pulseMaxVelocity;
-
-
 unsigned long totalVelocity;
-unsigned long otCopy;
-unsigned long ntCopy;
-volatile byte errorCount;
-volatile int pulseCount;
+unsigned long totalDeltaV;
+unsigned long ndtCopy;
+unsigned long ppsCountCpy;
 
 
 
@@ -56,18 +55,23 @@ void setup() {
 
 
 void readTime() {
-  noInterrupts();
-  oldTime = newTime;
-  newTime = micros(); //record time of pulse from timer1
-  errorCount ++; // increment a counter. 0 = wait for another pulse, 1 = do stuff, >1 = missed pulses
-  pulseFlag = true;
-  interrupts();
+  if (pulseFlag = false) {
+    oldTime = newTime;
+    newTime = micros(); //record time of pulse from timer1
+    newDeltaT = newTime - oldTime;
+    pulseCount ++;
+    errorCount ++; // tracks data validity. 0 = wait for another pulse, 1 = do stuff, >1 = something broke.
+    pulseFlag = true;
+  }
+  else {
+    errorCount = 0;
+    //ERROR FLAG HERE?
+  }
 }
 
 
 void timeCheck() { //After pulse received, checks error count for data validity.
     if (pulseFlag == true) {
-    
       switch (errorCount) {      
         case 1:               //1 valid time. Wait for second pulse before calculating
           calcFlag = false;
@@ -77,23 +81,19 @@ void timeCheck() { //After pulse received, checks error count for data validity.
           errorCount = 1;
           break;
         default:              //Missed pulse or watchdog timeout. Invalidate previous time and wait for 2 new pulses.
-          calcFlag = false;    //CONFIGURE AVERAGE CALCS SO FAILED PULSES DON'T SKEW AVERAGE
+          calcFlag = false;    
           errorCount = 0;
           break;
       }
       pulseFlag = false;
     }
-    else {
-      idleFlag = true;   //FIGURE OUT HOW TO RANDOMLY POLL SENSORS ON IDLE CYCLES TO KEEP DATA FRESH? NECESSARY?
-    }
-    interrupts();
 }
+
   
 
 void pulseCalc() {
 
-    oldDeltaT = newDeltaT; //IS oldDeltaT EVEN USED?
-    newDeltaT = ntCopy - otCopy;  //Calculate time between pulses
+    //oldDeltaT = newDeltaT; //IS oldDeltaT EVEN USED?
     oldVelocity = newVelocity;    
     newVelocity = 14000000 / newDeltaT; //tenths of MPH(IS THIS RIGHT FOR MICROS?)
     oldDeltaV = newDeltaV;
@@ -113,6 +113,7 @@ void pulseCalc() {
       pulseMinVelocity = newVelocity;
     }
     totalVelocity = totalVelocity + newVelocity; //Add newVelocity to velocity total for averaging later
+    totalDeltaV = totalDeltaV + newDeltaV;
 }
 
 
@@ -122,14 +123,11 @@ void ppsInterrupt() { //ISR for GPS PPS
 }
 
 
-
 void oneSecond() {
-
 }
 
 
 void fiveSeconds() {
-  
 }
 
 void tenSeconds() {
@@ -167,8 +165,7 @@ void oneHour() {
 void loop() {
   if (calcFlag == true) {    
       noInterrupts();
-      otCopy = oldTime; //copy shared data to a safe place to math it
-      ntCopy = newTime;
+      ndtCopy = newDeltaT;  //copy shared data to a safe place to math it
       interrupts();    
       pulseCalc();
       calcFlag = false;
