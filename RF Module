@@ -1,5 +1,3 @@
-
-
 #define TX_RXact 2  //Module Pin 1 Low = Squelch open, High = squelch closed
 #define TX_AFout 3  //Module pin 3 Receive audio
 #define TX_ptt 5    //Module pin 5 Low for TX
@@ -11,16 +9,18 @@
 String TX_shake = "AT+DMOCONNECT"; //handshake
 String TX_sgHead = "AT+DMOSETGROUP="; //group set preamble
 String TX_volHead = "AT+DMOSETVOLUME="; //volume preamble
-String TX_filHead = "AT+SETFILTER="; //audio filter preamble
+String TX_filHead = "AT+DMOSETFILTER="; //audio filter preamble
+
 //---------End all strings in this section with comma----------//
 String TX_bw = "0,"; //0 = 12.5khz 1 = 25khz
-String TX_txf = "144.3900,"; //TX frequency: Must use 4 digits after dot
-String TX_rxf = "144.3900,"; //rx freq: " "
+String TX_txf = "144.3800,"; //TX frequency: Must use 4 digits after dot
+String TX_rxf = "144.3800,"; //rx freq: " "
 String TX_txpl = "0000,"; //TX CTCSS 0000 = none See programming manual for codes
 String TX_sq = "6,"; //Squelch level 0-8: 0 = open
 //------------------------------------------------------------//
+
 String TX_rxpl = "0000"; //RX CTCSS
-String TX_vol = "1"; //RX audio volume level 1-8
+String TX_vol = "4"; //RX audio volume level 1-8
 String TX_fil = "1,1,1"; //RX audio filter. Emphasis,Highpass,Lowpass 1 = bypass 0 = normal
 
 String groupString = TX_sgHead + TX_bw + TX_txf + TX_rxf + TX_txpl + TX_sq + TX_rxpl;
@@ -40,7 +40,7 @@ bool errorFlag;
 //Prints all set commands and replies, turns on onboard LED. Last character should be 0. 1 = error
 void txDebug() {
   digitalWrite(error_pin, HIGH);
-  Serial.println("TRANSCEIVER ERROR!");
+  Serial.println("TRANSCEIVER ERROR");
   Serial.print("Handshake: ");
   Serial.println(TX_shake);
   Serial.print("Reply: ");
@@ -64,37 +64,17 @@ void txDebug() {
 void handShake() {
   serialCount = 0;
   Serial1.println(TX_shake);
+  delay(100);
+  Serial1.println(TX_shake);
   while (Serial1.available() > 0) {
     char incomingChar;
     incomingChar = Serial1.read();
     shakeReply[serialCount] = incomingChar;
     serialCount++;
   }
-  if (serialCount == 0 || shakeReply[serialCount] != 0) {
-    delay(30);
-    serialCount = 0;
-    Serial1.println(TX_shake);
-    while (Serial1.available() > 0) {
-      char incomingChar;
-      incomingChar = Serial1.read();
-      shakeReply[serialCount] = incomingChar;
-      serialCount++;
-    } 
-    if (serialCount == 0 || shakeReply[serialCount] != 0) {
-      delay(1000);
-      serialCount = 0;
-      Serial1.println(TX_shake);
-      while (Serial1.available() > 0) {
-        char incomingChar;
-        incomingChar = Serial1.read();
-        shakeReply[serialCount] = incomingChar;
-        serialCount++;
-      }
-      if (serialCount == 0 || shakeReply[serialCount] != 0) {
-        errorFlag = true;
-      }
-    }
-  }            
+  if (serialCount == 0 || shakeReply[serialCount] == 1) {
+    errorFlag = true;
+  }    
 }
 
 //----------------SetGroup---------------//
@@ -102,37 +82,17 @@ void handShake() {
 void setGroup() {
   serialCount = 0;
   Serial1.println(groupString);
+  delay(100);
+  Serial1.println(groupString);
   while (Serial1.available() > 0) {
     char incomingChar;
     incomingChar = Serial1.read();
     groupReply[serialCount] = incomingChar;
     serialCount++;
   }
-  if (serialCount == 0 || groupReply[serialCount] != 0) {
-    delay(30);
-    serialCount = 0;
-    Serial1.println(groupString);
-    while (Serial1.available() > 0) {
-      char incomingChar;
-      incomingChar = Serial1.read();
-      groupReply[serialCount] = incomingChar;
-      serialCount++;
-    } 
-    if (serialCount == 0 || groupReply[serialCount] != 0) {
-      delay(1000);
-      serialCount = 0;
-      Serial1.println(groupString);
-      while (Serial1.available() > 0) {
-        char incomingChar;
-        incomingChar = Serial1.read();
-        groupReply[serialCount] = incomingChar;
-        serialCount++;
-      }
-      if (serialCount == 0 || groupReply[serialCount] != 0) {
-        errorFlag = true;
-      }
-    }
-  }      
+  if (serialCount == 0 || shakeReply[serialCount] == 1) {
+    errorFlag = true;
+  } 
 }
 
 //------------------SetVolume---------------//
@@ -140,37 +100,17 @@ void setGroup() {
 void setVolume() {
   serialCount = 0;
   Serial1.println(volumeString);
+  delay(100);
+  Serial1.println(volumeString);
   while (Serial1.available() > 0) {
     char incomingChar;
     incomingChar = Serial1.read();
     volumeReply[serialCount] = incomingChar;
     serialCount++;
   }
-  if (serialCount == 0 || volumeReply[serialCount] != 0) {
-    delay(30);
-    serialCount = 0;
-    Serial1.println(volumeString);
-    while (Serial1.available() > 0) {
-      char incomingChar;
-      incomingChar = Serial1.read();
-      volumeReply[serialCount] = incomingChar;
-      serialCount++;
-    } 
-    if (serialCount == 0 || volumeReply[serialCount] != 0) {
-      delay(1000);
-      serialCount = 0;
-      Serial1.println(volumeString);
-      while (Serial1.available() > 0) {
-        char incomingChar;
-        incomingChar = Serial1.read();
-        volumeReply[serialCount] = incomingChar;
-        serialCount++;
-      }
-      if (serialCount == 0 || volumeReply[serialCount] != 0) {
-        errorFlag = true;
-      }
-    }
-  }     
+  if (serialCount == 0 || volumeReply[serialCount] == 1) {
+    errorFlag = true;
+  }
 }
 
 //---------------SetFilter----------------//
@@ -178,43 +118,23 @@ void setVolume() {
 void setFilter() {
   serialCount = 0;
   Serial1.println(filterString);
+  delay(100);
+  Serial1.println(filterString);
   while (Serial1.available() > 0) {
     char incomingChar;
     incomingChar = Serial1.read();
     filterReply[serialCount] = incomingChar;
     serialCount++;
   }
-  if (serialCount == 0 || filterReply[serialCount] != 0) {
-    delay(30);
-    serialCount = 0;
-    Serial1.println(filterString);
-    while (Serial1.available() > 0) {
-      char incomingChar;
-      incomingChar = Serial1.read();
-      filterReply[serialCount] = incomingChar;
-      serialCount++;
-    } 
-    if (serialCount == 0 || filterReply[serialCount] != 0) {
-      delay(1000);
-      serialCount = 0;
-      Serial1.println(filterString);
-      while (Serial1.available() > 0) {
-        char incomingChar;
-        incomingChar = Serial1.read();
-        filterReply[serialCount] = incomingChar;
-        serialCount++;
-      }
-      if (serialCount == 0 || filterReply[serialCount] != 0) {
-        errorFlag = true;
-      }
-    }
-  }     
+  if (serialCount == 0 || filterReply[serialCount] == 1) {
+    errorFlag = true;
+  }    
 }
 
 //---------------------SETUP----------------------//
 
 void setup() {
-
+  errorFlag = false;
   pinMode(TX_pwr, OUTPUT);
   digitalWrite(TX_pwr, LOW);
   pinMode(TX_RXact, INPUT);
@@ -225,10 +145,10 @@ void setup() {
   pinMode(error_pin, OUTPUT);
   digitalWrite(error_pin, LOW);
 
-  
   Serial.begin(115200);
   Serial1.begin(9600);
 
+  delay(4000);
   handShake();
   delay(500);
   setGroup();
@@ -236,16 +156,22 @@ void setup() {
   setVolume();
   delay(500);
   setFilter();
-
-  if (errorFlag == true){
+  
+  if (errorFlag == true) {
     txDebug();
   }
-}
+} 
 
 void loop() {
-  
+ /* delay(4000);
+  digitalWrite(TX_ptt, LOW);
+  tone(TX_AFin, 1200);
+  delay(1000);
+  noTone(TX_AFin);
+  tone(TX_AFin, 2400);
+  delay(1000);
+  noTone(TX_AFin);
+  digitalWrite(TX_ptt, HIGH);
+  */
   
 }
-
-
-
