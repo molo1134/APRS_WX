@@ -1,0 +1,27 @@
+char gpsIncoming[32];
+char gpsHeader[] = "$GPRMC";
+byte gpsArrayIndex;
+int bufferIndex;
+bool compareMatch; 
+
+
+void setup() 
+{
+  Serial.begin(115200);
+  Serial1.begin(9600);
+}
+
+bool compareArrays(char gpsIncoming[], char gpsHeader[], int bufferIndex) {
+  for(bufferIndex = 0; bufferIndex <= 5; bufferIndex++) {
+    if (gpsIncoming[bufferIndex] != gpsHeader[bufferIndex]) {
+      compareMatch = false;
+    }
+  }
+  compareMatch = true;
+}
+
+void loop()
+{
+compareArrays(gpsIncoming[], gpsHeader[], bufferIndex);
+  
+}
