@@ -37,7 +37,7 @@ char *nmea_read(void)
   // we ignore the CRLF, but need room for a NULL
   static char msg[81];
 
-  k = Serial.read();
+  k = Serial1.read();
 
   if (k != -1) {
     *c = (char)k;
@@ -116,6 +116,7 @@ void setup(void)
 void loop(void)
 {
     char *msg;
+    char header[7];
     char timeIn[5];
     char lat[8];
     char lon[9];
@@ -123,37 +124,31 @@ void loop(void)
     char ew[2];
     char date[3];
     char timeStamp[8];
-    //char wxInfo[] = "220/004g005t-07r000p000P000h50b09900wRSW";
+    char wxInfo[] = "220/004g005t-07r000p000P000h50b09900wRSW";
+    char output[256];
     
     msg = nmea_read();
     
     if (msg != NULL) {
         if (nmea_verify(msg)) {
-            nmea_field(msg, timeIn, sizeof(timeIn), 1);
-            nmea_field(msg, lat, sizeof(lat), 3);
-            nmea_field(msg, lon, sizeof(lon), 4);
-            nmea_field(msg, ns, sizeof(ns), 5);
-            nmea_field(msg, ew, sizeof(ew), 6);
-            nmea_field(msg, date, sizeof(date), 13);
-
-            sprintf(timeStamp, "%s%sz", date, timeIn);
+            if (msg[5] == 'C') {
+              nmea_field(msg, timeIn, sizeof(timeIn), 1);
+              nmea_field(msg, lat, sizeof(lat), 3);
+              nmea_field(msg, lon, sizeof(lon), 4);
+              nmea_field(msg, ns, sizeof(ns), 5);
+              nmea_field(msg, ew, sizeof(ew), 6);
+              nmea_field(msg, date, sizeof(date), 13);
+              sprintf(output, "@%s%sz%s%s/%s%s_", date, timeIn, lat, ns, lon, ew);
             
          
 
             
             
             
-            // modify the fields as needed here, before printing them
+              // modify the fields as needed here, before printing them
             
-            Serial.print("@");
-            Serial.print(timeStamp);
-            Serial.print(lat);
-            Serial.print(ns);
-            Serial.print("/");
-            Serial.print(lon);
-            Serial.print(ew);
-            Serial.print("_");
-            //Serial.println(wxInfo);
+              Serial.println(output);
+            }
         } else {
             Serial.println("Message checksum failed.");
         }
