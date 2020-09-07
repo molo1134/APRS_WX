@@ -1,0 +1,161 @@
+// verify NMEA message checksum
+// returns 0 on failure, 1 on success, and 2 if no checksum was provided
+int nmea_verify(char msg[])
+{
+  char hex[] = "0123456789ABCDEF";
+  char checksum = 0;
+  char x, y;
+  int i;
+  
+  // XOR message characters, excluding start-of-message character and
+  // checksum characters
+  for (i = 1; msg[i] != '\0'; i++) {
+    if (msg[i] == '*') break;
+
+    checksum ^= msg[i];
+  }
+
+  if (msg[i] == '\0') return 2;
+
+  // convert calculated checksum to ASCII
+  x = hex[(checksum >> 4) & 0x0F];
+  y = hex[checksum & 0x0F];
+
+  // compare calculated checksum to message checksum
+  return msg[i+1] == x && msg[i+2] == y;
+}
+
+// read NMEA message data
+// returns full message when done, otherwise returns null
+char *nmea_read(void)
+{
+  static int i = 0;
+  int k;
+  char *c;
+  
+  // maximum message length is 82 characters including CRLF
+  // we ignore the CRLF, but need room for a NULL
+  static char msg[81];
+
+  k = Serial.read();
+
+  if (k != -1) {
+    *c = (char)k;
+    
+    // reset at message start
+    if (*c == '$') {
+      i = 0;
+    }
+    
+    if (i < 80) { // stop reading if message is too long
+      if (*c == '\r') { // ignore CR
+      } else if (*c == '\n') { // finish when we see LF
+        c[i] = '\0';
+        return msg;
+      } else { // store valid data
+        msg[i++] = *c;
+      }
+    }
+  }
+
+  return NULL;
+}
+
+// get NMEA field
+// reads up to buf_len characters of msg[]'s field_spec'th field into buf[]
+// returns the number of bytes read
+int nmea_field(char msg[], char buf[], size_t buf_len, int field_spec)
+{
+  int field_num = 0;
+  int len = 0;
+  
+  // search through the message until the specified field is found, then
+  // copy it into the field buffer
+  for (int i = 0; i < 80 && msg[i] != '\0'; i++) {
+    if (field_num == field_spec) {
+      if (msg[i] != ',' && msg[i] != '*'
+          && (size_t)len < (buf_len - 1)) {
+        buf[len++] = msg[i];
+      } else {
+        break;
+      }
+    } else if (msg[i] == ',') {
+      field_num++;
+    }
+  }
+  
+  buf[len] = '\0';
+  
+  return len;
+}
+
+// just an example of nmea_fields() usage
+void print_fields(char msg[])
+{
+  char field[16];
+
+  for (int i = 0; i < 16; i++) {
+    nmea_field(msg, field, sizeof(field), i);
+    Serial.print(i);
+    Serial.print(": ");
+    if (field != NULL) {
+      Serial.println(field);
+    } else {
+      Serial.println("No data.");
+    }
+  }
+}
+
+
+
+void setup(void)
+{
+  Serial.begin(115200);
+  Serial1.begin(9600);
+}
+void loop(void)
+{
+    char *msg;
+    char timeIn[5];
+    char lat[8];
+    char lon[9];
+    char ns[2];
+    char ew[2];
+    char date[3];
+    char timeStamp[8];
+    //char wxInfo[] = "220/004g005t-07r000p000P000h50b09900wRSW";
+    
+    msg = nmea_read();
+    
+    if (msg != NULL) {
+        if (nmea_verify(msg)) {
+            nmea_field(msg, timeIn, sizeof(timeIn), 1);
+            nmea_field(msg, lat, sizeof(lat), 3);
+            nmea_field(msg, lon, sizeof(lon), 4);
+            nmea_field(msg, ns, sizeof(ns), 5);
+            nmea_field(msg, ew, sizeof(ew), 6);
+            nmea_field(msg, date, sizeof(date), 13);
+
+            sprintf(timeStamp, "%s%sz", date, timeIn);
+            
+         
+
+            
+            
+            
+            // modify the fields as needed here, before printing them
+            
+            Serial.print("@");
+            Serial.print(timeStamp);
+            Serial.print(lat);
+            Serial.print(ns);
+            Serial.print("/");
+            Serial.print(lon);
+            Serial.print(ew);
+            Serial.print("_");
+            //Serial.println(wxInfo);
+        } else {
+            Serial.println("Message checksum failed.");
+        }
+    }
+}
