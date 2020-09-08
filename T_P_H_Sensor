@@ -79,6 +79,8 @@ void tempSense() {
 	float p = bmx280.getPressure64();
   float p1 = p / 10;
   pres = (int)p1;
+  
+  //------WHY DOES BELOW CODE BREAK THE UNIVERSE?--------//
 
   if (pres < 10000) {
     sprintf(pressure, "0%s", pres, 6);
@@ -88,6 +90,8 @@ void tempSense() {
    sprintf(pressure, "%s", pres, 6);
    
   }
+
+//------UNIVERSE ENDS ABOVE-----//
 
   Serial.print("Pressure: ");
   Serial.println(pres);
