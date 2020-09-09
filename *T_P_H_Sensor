@@ -1,9 +1,10 @@
 #include <Wire.h>
 #include <BMx280I2C.h>
 
+BMx280I2C bmx280(I2C_ADDRESS);
+
 #define I2C_ADDRESS 0x76
 #define TEMP_PWR_PIN 22
-
 
 char pressure[7];
 char temperature[6];
@@ -14,13 +15,10 @@ unsigned int pres;
 int temp;
 int hum;
 int dew;
-
-byte tempInitError;
-byte tempReadError;
+byte tempInitError = 0;
+byte tempReadError = 0;
 byte tempStatus = 0;
 byte tempFatal = 0;
-
-BMx280I2C bmx280(I2C_ADDRESS);
 
 
 //Disable the temp sensor and write zeros to APRS WX strings
