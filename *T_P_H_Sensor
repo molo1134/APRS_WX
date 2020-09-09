@@ -1,3 +1,7 @@
+/////////TO DO///////////
+//Call full system power cycle in event of fatal sensor error?
+
+
 #include <Wire.h>
 #include <BMx280I2C.h>
 
