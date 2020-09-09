@@ -17,24 +17,26 @@ int dew;
 
 byte tempInitError;
 byte tempReadError;
-byte tempFatal;
-byte tempStatus;
+byte tempStatus = 0;
+byte tempFatal = 0;
 
-//create a BMx280I2C object using the I2C interface with I2C Address 0x76
 BMx280I2C bmx280(I2C_ADDRESS);
 
 
+//Disable the temp sensor and write zeros to APRS WX strings
 void tempDisable() {
   digitalWrite(TEMP_PWR_PIN, LOW);
   pres = "b00000";
   temp = "t000";
   hum = "h00";
   dew = "dp000";
-  tempFatal = 1;
+
   tempStatus = "0";
+  tempFatal = 1;
 }
 
 
+//Reset routine in case of initialization failure
 void tempInitReset() {
   for (int e = 0; e <= 2; e++) {
     digitalWrite(TEMP_PWR_PIN, LOW);
@@ -57,6 +59,7 @@ void tempInitReset() {
 }
 
 
+//Retry and reset routine for sensor read failure
 void tempReadReset() {
   tempStatus = 0;
   delay(500);
@@ -87,7 +90,7 @@ void tempReadReset() {
   }
 }
 
-
+//Setup routine, call in void setup()
 void tempSetup() {
   pinMode(TEMP_PWR_PIN, OUTPUT);
   digitalWrite(TEMP_PWR_PIN, HIGH);
