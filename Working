@@ -1,0 +1,184 @@
+#include <Wire.h>
+#include <BMx280I2C.h>
+
+#define I2C_ADDRESS 0x76
+#define TEMP_PWR_PIN 22
+
+char pressure[7];
+char temperature[6];
+char humidity[4];
+char dewpoint[6];
+
+unsigned int pres;
+int temp;
+int hum;
+int dew;
+
+byte tempError;
+byte tempInitError;
+byte 
+
+//create a BMx280I2C object using the I2C interface with I2C Address 0x76
+BMx280I2C bmx280(I2C_ADDRESS);
+
+
+//----------------------WORKING--------//
+
+void tempDisable() {
+  
+}
+
+
+void tempInitReset() {
+  Serial1.end();
+
+  for (int e = 1; e > 1 && e <= 3; e++) {
+    digitalWrite(TEMP_PWR_PIN, LOW);
+    delay(300 * e);
+    digitalWrite(TEMP_PWR_PIN, HIGH);
+    delay(300 * e);
+    if (bmx280.begin()) {
+      Serial1.begin(9600);
+      return;
+    }
+    else if (tempInitError < 2){
+      e++;
+      tempInitError++;
+    }
+    else if (tempInitError >= 2) {
+      Serial1.begin(9600);
+      tempDisable();
+    }
+    
+}
+
+
+void tempReadReset() {
+  
+  if (tempError == 2) {
+    delay(500);
+    if (bmx280.measure()) {
+    tempError = 0;
+    return;
+  }
+}
+    
+
+
+
+    
+    if (!bmx280.begin()) {
+      tempInitReset();
+    }
+    for (int e = 1; e > 1 && e <= 3; e++) {
+      digitalWrite(TEMP_PWR_PIN, LOW);
+      delay(500 * e);
+      digitalWrite(TEMP_PWR_PIN, HIGH);
+      delay(500 * e);
+      if (!bmx280.begin()) {
+        tempError = 1;
+        e = 3;
+      }
+        else {
+        e++;
+        tempInitError++;
+        }
+    }
+    if (tempInitError > 2) {
+      tempDisable();     
+    }
+  }
+
+}
+
+//-----------------------------//
+
+
+
+void tempSetup() {
+  pinMode(TEMP_PWR_PIN, OUTPUT);
+  digitalWrite(TEMP_PWR_PIN, HIGH);
+
+	//begin() checks the Interface, reads the sensor ID (to differentiate between BMP280 and BME280)
+	//and reads compensation parameters.
+  delay(500);
+	if (!bmx280.begin()) {
+		Serial.println("TEMP SETUP FAILED");
+    tempInitReset();
+	}
+
+	//reset sensor to default parameters.
+	bmx280.resetToDefaults();
+
+	//set  oversampling to enable pressure, temperature, and humidity measurements. 
+	bmx280.writeOversamplingPressure(BMx280MI::OSRS_P_x16);
+	bmx280.writeOversamplingTemperature(BMx280MI::OSRS_T_x16);
+	bmx280.writeOversamplingHumidity(BMx280MI::OSRS_H_x16);
+}
+
+void tempSense() {
+
+	//start a measurement
+	if (!bmx280.measure()) {
+    tempError = 2;
+    tempReset();
+    Serial.print("TEMP MEASUREMENT FAILED");
+    return;
+	}
+
+	//wait for the measurement to finish
+	do {
+		delay(100);
+	} while (!bmx280.hasValue());
+
+  //poll sensors and format data for APRS
+	float p = bmx280.getPressure64();
+  float p1 = p / 10;
+  pres = (int)p1;
+
+  sprintf(pressure, "b%05d", pres);
+  //Serial.print("Pressure: ");
+  //Serial.println(pressure);
+  
+	float t = bmx280.getTemperature();
+  float t1 = (t * 1.8)  + 32;
+  temp = (int)t1;
+
+  sprintf(temperature, "t%03d", temp);
+  //Serial.print("Temp: ");
+  //Serial.println(temperature);
+
+  float h = bmx280.getHumidity();
+  hum = (int)h;
+  if (hum == 100) {
+    hum = 0;
+  } 
+
+  sprintf(humidity, "h%02d", hum);
+  //Serial.print("Humidity: ");
+  //Serial.println(humidity);
+ 
+// calculate dewpoint
+  float d = log(h/100) + (17.62 * t) / (243.12 + t);
+  float d1 = 243.12 * d / (17.62 - d);
+  d = (d1 * 1.8) + 32;
+  dew = (int)d;
+
+  sprintf(dewpoint, "dp%03d", dew);  
+  //Serial.print("Dewpoint: ");
+  //Serial.println(dewpoint);
+ 
+}
+
+
+void setup() {
+  Serial.begin(9600);
+  Wire.begin();
+  tempSetup();
+ 
+}
+
+void loop() {
+  tempSense();
+  delay(2000);
+}
