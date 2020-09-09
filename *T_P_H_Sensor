@@ -4,6 +4,7 @@
 #define I2C_ADDRESS 0x76
 #define TEMP_PWR_PIN 22
 
+
 char pressure[7];
 char temperature[6];
 char humidity[4];
@@ -14,28 +15,78 @@ int temp;
 int hum;
 int dew;
 
-/* Error Handling
-byte tempError;
+byte tempInitError;
+byte tempReadError;
 byte tempFatal;
-*/
+byte tempStatus;
 
 //create a BMx280I2C object using the I2C interface with I2C Address 0x76
 BMx280I2C bmx280(I2C_ADDRESS);
 
-/* ERROR HANDLING
-void tempFail() {
 
-  if (tempError < 3) {
+void tempDisable() {
+  digitalWrite(TEMP_PWR_PIN, LOW);
+  pres = "b00000";
+  temp = "t000";
+  hum = "h00";
+  dew = "dp000";
+  tempFatal = 1;
+  tempStatus = "0";
+}
+
+
+void tempInitReset() {
+  for (int e = 0; e <= 2; e++) {
     digitalWrite(TEMP_PWR_PIN, LOW);
-    delay(500);
+    delay(300 * e);
     digitalWrite(TEMP_PWR_PIN, HIGH);
-    tempError++;    
+    delay(300 * e);
+    if (bmx280.begin()) {
+      tempSetup();
+      return;
+    }
+    else if (tempInitError < 2){
+      e++;
+      tempInitError++;
+    }
+    else if (tempInitError >= 2) {
+      tempDisable();
+      return;
+    }
   }
+}
 
-  if (tempError >= 3) {
-    tempFatal = 1;
+
+void tempReadReset() {
+  tempStatus = 0;
+  delay(500);
+  if (bmx280.measure()) {
+    tempRead();
+    if (tempStatus == 1) {
+      return;
+    }
   }
-} */
+  else {
+    for (int x = 0; x <= 2; x++) {
+      if (tempReadError < 2) {
+        digitalWrite(TEMP_PWR_PIN, LOW);
+        delay(1000);
+        tempSetup();
+        delay(1000);
+        tempRead();
+        if (tempStatus == 1) {
+          return;
+        }
+        tempReadError++;
+      }
+      else {
+        tempDisable();
+        return;
+      }
+    }
+  }
+}
+
 
 void tempSetup() {
   pinMode(TEMP_PWR_PIN, OUTPUT);
@@ -46,7 +97,7 @@ void tempSetup() {
   delay(500);
 	if (!bmx280.begin()) {
 		Serial.println("TEMP SETUP FAILED");
-    //tempFail();
+    tempInitReset();
 	}
 
 	//reset sensor to default parameters.
@@ -58,14 +109,16 @@ void tempSetup() {
 	bmx280.writeOversamplingHumidity(BMx280MI::OSRS_H_x16);
 }
 
-void tempSense() {
+void tempRead() {
 
 	//start a measurement
 	if (!bmx280.measure()) {
-    Serial.print("TEMP MEASUREMENT FAILED");
-    //tempFail();
-    return;
+    tempReadReset();
 	}
+  else {
+    tempStatus = 1;
+  }
+  
 
 	//wait for the measurement to finish
 	do {
@@ -108,8 +161,7 @@ void tempSense() {
   sprintf(dewpoint, "dp%03d", dew);  
   //Serial.print("Dewpoint: ");
   //Serial.println(dewpoint);
- 
-  //tempError = 0; //ERROR HANDLING
+
 }
 
 
@@ -117,9 +169,10 @@ void setup() {
   Serial.begin(9600);
   Wire.begin();
   tempSetup();
+ 
 }
 
 void loop() {
-  tempSense();
+  tempRead();
   delay(2000);
 }
