@@ -25,7 +25,6 @@ uint8_t passBuffer[5];
 uint8_t commandBuffer[3];
 uint8_t commandCount = 0;
 uint8_t bufCount = 0;
-uint8_t inByte = 0;
 bool dtmfReceived = false;
 bool passSuccess = false;
 bool killSuccess = false;
@@ -61,21 +60,12 @@ void dtmfISR() {
 //split PIN and command digits into separate arrays
 
 void dtmfParse() {
+  uint8_t inByte = 0;
   if (bufCount == 0) { //Record first tone receive time
     dtmfTime = millis();
   }
-  inByte = 0;
-  if (dtmfBits[0] == 1) {
-    inByte++;
-  }
-  if (dtmfBits[1] == 1) {
-    inByte = inByte + 2;
-  }
-  if (dtmfBits[2] == 1) {
-    inByte = inByte + 4;
-  }
-  if (dtmfBits[3] == 1) {
-    inByte = inByte + 8;
+  for (int i = 0; i < 4; i++) {
+    inByte += dtmfBits[i] << i;
   }
   if (inByte == 10) {
     inByte = 0;
