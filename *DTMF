@@ -7,24 +7,25 @@
 #define KILL 0, 11 // 0 *
 #define ENABLE 12, 1 // # 1
 
-unsigned int dtmfPins[4] = {8, 9, 10, 11};
-unsigned int dtmfBits[4];
-unsigned int passBuffer[5];
-unsigned int commandBuffer[3];
-unsigned int dtmfPass[] = {PASS};
-unsigned int dtmfKill[] = {KILL};
-unsigned int dtmfEnable[] = {ENABLE};
-bool dtmfAvailable = false;
-unsigned int commandCount = 0;
-unsigned int bufCount = 0;
-unsigned int inByte = 0;
+uint8_t dtmfPins[4] = {8, 9, 10, 11};
+uint8_t dtmfPass[] = {PASS};
+uint8_t dtmfKill[] = {KILL};
+uint8_t dtmfEnable[] = {ENABLE};
+uint8_t dtmfBits[4];
+uint8_t passBuffer[5];
+uint8_t commandBuffer[3];
+unsigned int dtmfTime = 0;
+uint8_t commandCount = 0;
+uint8_t bufCount = 0;
+uint8_t inByte = 0;
 bool dtmfReceived = false;
 bool passSuccess = false;
 bool killSuccess = false;
 bool enableSuccess = false;
-unsigned int dtmfTime = 0;
+bool dtmfAvailable = false;
 
 
+//------------DTMF SETUP------------//
 
 
 void dtmfSetup() {
@@ -36,14 +37,17 @@ void dtmfSetup() {
   attachInterrupt(digitalPinToInterrupt(DTMF_IN), dtmfISR, FALLING);
 }
 
-  
+//------------DTMF ISR------------//
+
 void dtmfISR() {
   for (int d = 0; d <= 3; d++) {
   dtmfBits[d] = digitalRead(dtmfPins[d]);
   } 
   dtmfAvailable = 1;
 } 
-  
+
+//------------DTMF INPUT PARSER------------//
+
 void dtmfParse() {
   dtmfTime = millis();
   inByte = 0;
@@ -78,6 +82,7 @@ void dtmfParse() {
   dtmfAvailable = 0;
 }
 
+//------------PROCESS PIN------------//
 
 bool passVerify(){
   for (int c = 0; c < 4; c++) {
@@ -93,6 +98,8 @@ bool passVerify(){
   }   
 }
 
+//------------CHECK FOR DISABLE COMMAND------------//
+
 bool killVerify() {
   
   for (int c = 0; c < 2; c++) {
@@ -104,6 +111,8 @@ bool killVerify() {
   return true;
 }
 
+//------------CHECK FOR ENABLE COMMAND------------//
+
 bool enableVerify() {
   
   for (int c = 0; c < 2; c++) {
@@ -114,6 +123,8 @@ bool enableVerify() {
   enableSuccess = true;
   return true;
 }
+
+//------------VERIFY TIMEOUT AND PIN, EXECUTE COMMAND------------//
 
 void dtmfExecute() {
   if (millis() - dtmfTime > 5000) {
@@ -134,6 +145,8 @@ void dtmfExecute() {
   }
   dtmfReceived = false;
 }
+
+//-------------------------------------------//
 
 void setup() {
   Serial.begin(115200);
