@@ -1,0 +1,152 @@
+#define DTMF_IN 3
+
+//PASS is a 4 digit PIN, each digit separated by a comma. 
+//KILL is a 2 digit command, each digit separated by a comma
+// * button is 11, '0' button is 10, # button is 12
+#define PASS 1, 2, 3, 4
+#define KILL 0, 11 // 0 *
+#define ENABLE 12, 1 // # 1
+
+unsigned int dtmfPins[4] = {8, 9, 10, 11};
+unsigned int dtmfBits[4];
+unsigned int passBuffer[5];
+unsigned int commandBuffer[3];
+unsigned int dtmfPass[] = {PASS};
+unsigned int dtmfKill[] = {KILL};
+unsigned int dtmfEnable[] = {ENABLE};
+bool dtmfAvailable = false;
+unsigned int commandCount = 0;
+unsigned int bufCount = 0;
+unsigned int inByte = 0;
+bool dtmfReceived = false;
+bool passSuccess = false;
+bool killSuccess = false;
+bool enableSuccess = false;
+unsigned int dtmfTime = 0;
+
+
+
+
+void dtmfSetup() {
+  pinMode(DTMF_IN, INPUT_PULLUP);
+  pinMode(8, INPUT);
+  pinMode(9, INPUT);
+  pinMode(10, INPUT);
+  pinMode(11, INPUT);
+  attachInterrupt(digitalPinToInterrupt(DTMF_IN), dtmfISR, FALLING);
+}
+
+  
+void dtmfISR() {
+  for (int d = 0; d <= 3; d++) {
+  dtmfBits[d] = digitalRead(dtmfPins[d]);
+  } 
+  dtmfAvailable = 1;
+} 
+  
+void dtmfParse() {
+  dtmfTime = millis();
+  inByte = 0;
+  if (dtmfBits[0] == 1) {
+    inByte++;
+  }
+  if (dtmfBits[1] == 1) {
+    inByte = inByte + 2;
+  }
+  if (dtmfBits[2] == 1) {
+    inByte = inByte + 4;
+  }
+  if (dtmfBits[3] == 1) {
+    inByte = inByte + 8;
+  }
+  if (inByte == 10) {
+    inByte = 0;
+  }
+  if (bufCount  < 3) {
+    passBuffer[bufCount] = inByte;
+  }
+  if (bufCount > 3) {
+    commandBuffer[commandCount] = inByte;
+    commandCount++;
+  }
+  bufCount++;
+  if (bufCount > 5) {
+    bufCount = 0;
+    commandCount = 0;
+    dtmfReceived = true;
+  }
+  dtmfAvailable = 0;
+}
+
+
+bool passVerify(){
+  for (int c = 0; c < 4; c++) {
+    if (dtmfPass[c] != passBuffer[c]) {
+      Serial.println("INCORRECT PIN");
+      return false;
+    }
+    else {
+      passSuccess = true;
+      Serial.println("PASSWORD ACCEPTED");
+      return true;
+    }
+  }   
+}
+
+bool killVerify() {
+  
+  for (int c = 0; c < 2; c++) {
+    if (commandBuffer[c] != dtmfKill[c]) {
+      return false;
+    }
+  }
+  killSuccess = true;
+  return true;
+}
+
+bool enableVerify() {
+  
+  for (int c = 0; c < 2; c++) {
+    if (commandBuffer[c] != dtmfEnable[c]) {
+      return false;
+    }
+  }
+  enableSuccess = true;
+  return true;
+}
+
+void dtmfExecute() {
+  if (millis() - dtmfTime > 5000) {
+    Serial.println("TIMEOUT");
+    dtmfReceived = false;
+    return;
+  }
+  if (passVerify() == true) {
+      if (killVerify() == true) {
+        Serial.println("DISABLED");
+      }
+      else if (enableVerify() == true) {
+        Serial.println("ENABLED");
+      }
+      else {
+        Serial.println("UNKNOWN COMMAND");
+      }
+  }
+  dtmfReceived = false;
+}
+
+void setup() {
+  Serial.begin(115200);
+  dtmfSetup();
+}
+
+void loop() {
+  if (dtmfReceived == true) {
+    dtmfExecute();
+  }
+  if (dtmfAvailable == 1) {
+    dtmfParse();
+  }
+  
+}
+
